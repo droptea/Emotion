@@ -42,6 +42,7 @@ import priv.droptea.emotion.io.TarsosDSPAudioInputStream;
  * Using a (blocking) audio player it is even possible to synchronize execution of
  * AudioProcessors and sound. This behavior can be used for visualization.
  * @author Joren Six
+ * 每次读取一块音频数据，并把这块数据发给各个自定义的音频处理器进行处理。
  */
 public class AudioDispatcher implements Runnable {
 
@@ -60,12 +61,14 @@ public class AudioDispatcher implements Runnable {
 	/**
 	 * This buffer is reused again and again to store audio data using the float
 	 * data type.
+	 * 用于存放一块音频数据的float数组
 	 */
 	private float[] audioFloatBuffer;
 
 	/**
 	 * This buffer is reused again and again to store audio data using the byte
 	 * data type.
+	 * 用于存放一块音频数据的Byte数组，每次都会把这个数组分发给各个音频处理器
 	 */
 	private byte[] audioByteBuffer;
 
@@ -87,6 +90,8 @@ public class AudioDispatcher implements Runnable {
 	 * The floatOverlap: the number of elements that are copied in the buffer
 	 * from the previous buffer. Overlap should be smaller (strict) than the
 	 * buffer size and can be zero. Defined in number of samples.
+	 * floatOverlap:L计算相关性所采用的重叠相加的长度
+	 * floatStepSize:Sa分析位移
 	 */
 	private int floatOverlap, floatStepSize;
 
@@ -94,6 +99,8 @@ public class AudioDispatcher implements Runnable {
 	 * The overlap and stepsize defined not in samples but in bytes. So it
 	 * depends on the bit depth. Since the int datatype is used only 8,16,24,...
 	 * bits or 1,2,3,... bytes are supported.
+	 * byteOverlap:L计算相关性所采用的重叠相加的长度
+	 * byteStepSize:Sa分析位移
 	 */
 	private int byteOverlap, byteStepSize;
 	
@@ -106,6 +113,7 @@ public class AudioDispatcher implements Runnable {
 	/**
 	 * Position in the stream in bytes. e.g. if 44100 bytes are processed and 16
 	 * bits per frame are used then you are 0.5 seconds into the stream.
+	 * 在流中的位置
 	 */
 	private long bytesProcessed;
 	
@@ -269,6 +277,7 @@ public class AudioDispatcher implements Runnable {
 		while (bytesRead != 0 && !stopped) {
 			
 			//Makes sure the right buffers are processed, they can be changed by audio processors.
+			//将切分好的音频数据分发给各个自定义的音频处理器进行实时处理
 			for (final AudioProcessor processor : audioProcessors) {
 				if(!processor.process(audioEvent)){
 					//skip to the next audio processors if false is returned.
@@ -341,8 +350,11 @@ public class AudioDispatcher implements Runnable {
 	 * 
 	 * The behavior for the first and last buffer is defined by their corresponding the zero pad settings. The method also handles the case if
 	 * the first buffer is also the last.
-	 * 
-	 * @return The number of bytes read.
+	 * 块数据分为两部分，前部分是重叠区域（是上一块数据的末尾部分），后部分是从音频源里新取出来的数据。
+	 * 第一块数据比较特殊，第一块没有重叠区域，整块都是从音频源里取出来的
+	 * 这是获取一块音频数据的方法，这个方法会被循环调用，通过这个方法我们可以一块块的读取出音频数据，直到读取出所有音频数据后才会被停止调用。
+	 * 从音频源中读取数据，并根据设置的重叠区域大小进行处理后得到一块音频数据，这块数据会发给各个自定义的音频处理器进行处理
+	 * @return The number of bytes read.读取了音频源的数据大小（第一次读取的返回值就是块大小，之后读取的返回值是块大小减去重叠区域大小，最后一次读取的返回值是...）
 	 * @throws IOException
 	 *             When something goes wrong while reading the stream. In
 	 *             particular, an IOException is thrown if the input stream has
@@ -350,16 +362,27 @@ public class AudioDispatcher implements Runnable {
 	 */
 	private int readNextAudioBlock() throws IOException {
 		assert floatOverlap < audioFloatBuffer.length;
-		
 		// Is this the first buffer?
+		//是否是第一块数据
 		boolean isFirstBuffer = (bytesProcessed ==0 || bytesProcessed == bytesToSkip);
+		//Shift the audio information using array copy since it is probably faster than manually shifting it.
+		// No need to do this on the first buffer
+		//如果不是第一块数据，会根据重叠区域大小，把上一块数据的末尾部分作为本块数据的头部进行填充，这部分数据作为重叠区域数据。
+		if(!isFirstBuffer && audioFloatBuffer.length == floatOverlap + floatStepSize ){
+			System.arraycopy(audioFloatBuffer,floatStepSize, audioFloatBuffer,0 ,floatOverlap);
+			/*
+			for(int i = floatStepSize ; i < floatStepSize+floatOverlap ; i++){
+				audioFloatBuffer[i-floatStepSize] = audioFloatBuffer[i];
+			}*/
+		}
 		
 		final int offsetInBytes;
-		
 		final int offsetInSamples;
-		
 		final int bytesToRead;
 		//Determine the amount of bytes to read from the stream
+		//下面是从音频源中读取数据填充到块中的操作
+		//因为第一块数据，没有填充重叠区域，所以需要从音频源中读取出块大小的数据，
+		//如果不是第一块数据，只需要读取出块大小减去重叠区域大小的数据即可
 		if(isFirstBuffer && !zeroPadFirstBuffer){
 			//If this is the first buffer and we do not want to zero pad the
 			//first buffer then read a full buffer
@@ -374,27 +397,19 @@ public class AudioDispatcher implements Runnable {
 			offsetInSamples = floatOverlap;
 		}
 		
-		//Shift the audio information using array copy since it is probably faster than manually shifting it.
-		// No need to do this on the first buffer
-		if(!isFirstBuffer && audioFloatBuffer.length == floatOverlap + floatStepSize ){
-			System.arraycopy(audioFloatBuffer,floatStepSize, audioFloatBuffer,0 ,floatOverlap);
-			/*
-			for(int i = floatStepSize ; i < floatStepSize+floatOverlap ; i++){
-				audioFloatBuffer[i-floatStepSize] = audioFloatBuffer[i];
-			}*/
-		}
-		
 		// Total amount of bytes read
 		int totalBytesRead = 0;
-		
 		// The amount of bytes read from the stream during one iteration.
+		//实际在一次读取中获得的数据大小
 		int bytesRead=0;
 		
 		// Is the end of the stream reached?
+		//是否音频数据已经读取完成
 		boolean endOfStream = false;
 				
 		// Always try to read the 'bytesToRead' amount of bytes.
 		// unless the stream is closed (stopped is true) or no bytes could be read during one iteration 
+		//循环读取音频数据，直到填满w数组为止
 		while(!stopped && !endOfStream && totalBytesRead<bytesToRead){
 			try{
 				bytesRead = audioInputStream.read(audioByteBuffer, offsetInBytes + totalBytesRead , bytesToRead - totalBytesRead);
@@ -435,6 +450,7 @@ public class AudioDispatcher implements Runnable {
 			}			
 		}else if(bytesToRead == totalBytesRead) {
 			// The expected amount of bytes have been read from the stream.
+			//得到我们期望的数据，把音频的byte数据转成float数据,这会方便后面对音频数据进行分析
 			if(isFirstBuffer && !zeroPadFirstBuffer){
 				converter.toFloatArray(audioByteBuffer, 0, audioFloatBuffer, 0, audioFloatBuffer.length);
 			}else{
@@ -443,15 +459,15 @@ public class AudioDispatcher implements Runnable {
 		} else if(!stopped) {
 			// If the end of the stream has not been reached and the number of bytes read is not the
 			// expected amount of bytes, then we are in an invalid state; 
+			//跑到这里不是我们希望看到的结果
 			throw new IOException(String.format("The end of the audio stream has not been reached and the number of bytes read (%d) is not equal "
 					+ "to the expected amount of bytes(%d).", totalBytesRead,bytesToRead));
 		}
 		
-		
 		// Makes sure AudioEvent contains correct info.
+		//把float数据和重叠区域大小设置到事件中
 		audioEvent.setFloatBuffer(audioFloatBuffer);
 		audioEvent.setOverlap(offsetInSamples);
-		
 		return totalBytesRead; 
 	}
 	

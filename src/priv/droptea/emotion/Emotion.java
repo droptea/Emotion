@@ -7,6 +7,7 @@ import java.lang.reflect.InvocationTargetException;
 
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
+import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.DataLine;
 import javax.sound.sampled.Mixer;
 import javax.sound.sampled.TargetDataLine;
@@ -65,6 +66,8 @@ public class Emotion extends JFrame{
 	private double currentFactor = 1;// pitch shift factor
 	private double sampleRate;
 	private AudioDispatcher dispatcher;
+	private AudioPlayer audioPlayer;
+	private Mixer curMixer;
 	
 	public static void main(String[] args) {
 		try {
@@ -115,16 +118,20 @@ public class Emotion extends JFrame{
 	
 	public  void changeMic(Mixer mixer) {
 		try {
-			AudioFormat mFormat = new AudioFormat(44100, 16, 1, true,true);
+			if(curMixer!=null&&curMixer.isOpen()) {
+				curMixer.close();
+			}
+			curMixer = mixer;
+			AudioFormat mFormat = new AudioFormat(44100, 16, 1, true,false);
 			DataLine.Info dataLineInfo = new DataLine.Info(TargetDataLine.class, mFormat);
-			
-			AudioPlayer audioPlayer = new AudioPlayer(mFormat);
+			if(audioPlayer==null) {
+				audioPlayer = new AudioPlayer(mFormat);
+			}
 			rateTransposer = new RateTransposer(currentFactor);
 			sampleRate =  mFormat.getSampleRate();
 			wsola = new WaveformSimilarityBasedOverlapAdd(Parameters.musicDefaults(currentFactor,sampleRate));
-			
 			TargetDataLine line;
-			line = (TargetDataLine) mixer.getLine(dataLineInfo);
+			line = (TargetDataLine) curMixer.getLine(dataLineInfo);
 			line.open(mFormat, wsola.getInputBufferSize());
 			line.start();
 			final AudioInputStream stream = new AudioInputStream(line);

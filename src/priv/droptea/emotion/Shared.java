@@ -27,8 +27,12 @@ package priv.droptea.emotion;
 import java.util.Vector;
 
 import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.Line;
+import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.Mixer;
 import javax.sound.sampled.Mixer.Info;
+
+import com.google.gson.Gson;
 
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.Charset;
@@ -44,6 +48,20 @@ public class Shared {
 					&& AudioSystem.getMixer(mixerinfo).getTargetLineInfo().length != 0) {
 				// Mixer capable of recording audio if target LineWavelet length != 0
 				infos.add(mixerinfo);
+				Line.Info[] lineInfos = AudioSystem.getMixer(mixerinfo).getTargetLineInfo();
+				  for (Line.Info lineInfo:lineInfos){
+				   System.out.println (AudioSystem.getMixer(mixerinfo)+"---"+lineInfo);
+				   Line line;
+					try {
+						line = AudioSystem.getMixer(mixerinfo).getLine(lineInfo);
+						System.out.println(AudioSystem.getMixer(mixerinfo)+"\t-----"+line);
+					} catch (LineUnavailableException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				   
+
+				  }
 			} else if (supportsPlayback
 					&& AudioSystem.getMixer(mixerinfo).getSourceLineInfo().length != 0) {
 				// Mixer capable of audio play back if source LineWavelet length != 0
@@ -54,17 +72,14 @@ public class Shared {
 	}
 	public static String toLocalString(Object info)
 	{
-		if(!isWindows())
-			return info.toString();
-		String defaultEncoding = Charset.defaultCharset().toString();
-		try
-		{
-			return new String(info.toString().getBytes("windows-1252"), defaultEncoding);
-		}
-		catch(UnsupportedEncodingException ex)
-		{
-			return info.toString();
-		}
+		/*
+		 * if(!isWindows()) return info.toString(); String defaultEncoding =
+		 * Charset.defaultCharset().toString(); try {
+		 * System.out.println(info.toString()); return new
+		 * String(info.toString().getBytes("windows-1252"), defaultEncoding); }
+		 * catch(UnsupportedEncodingException ex) { return info.toString(); }
+		 */
+		return info.toString();
 	}
 	private static String OS = null;
 	public static String getOsName()
