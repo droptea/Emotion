@@ -71,11 +71,17 @@ public class AudioEvent {
 
 	private int bytesProcessing;
 	
+	private int seekLength;
+	
 	
 	public AudioEvent(TarsosDSPAudioFormat format){
 		this.format = format;
 		this.converter = TarsosDSPAudioFloatConverter.getConverter(format);
 		this.overlap = 0;
+	}
+	
+	public TarsosDSPAudioFormat getFormat() {
+		return format;
 	}
 	
 	public float getSampleRate(){
@@ -227,6 +233,14 @@ public class AudioEvent {
 	public void setBytesProcessing(int bytesProcessing) {
 		this.bytesProcessing = bytesProcessing;
 		
+	}
+
+	public int getSeekLength() {
+		return seekLength;
+	}
+
+	public void setSeekLength(int seekLength) {
+		this.seekLength = seekLength;
 	}
 	
 }

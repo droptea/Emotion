@@ -22,8 +22,10 @@
 */
 
 
-package priv.droptea.emotion;
+package priv.droptea.emotion.processor;
 
+import priv.droptea.emotion.AudioDispatcher;
+import priv.droptea.emotion.AudioEvent;
 
 /**
  *
@@ -77,6 +79,13 @@ public class WaveformSimilarityBasedOverlapAdd implements AudioProcessor {
 	
 	public void setParameters(Parameters params){
 		newParameters = params;
+	}
+	public Parameters getParameters() {
+		return newParameters;
+	}
+	
+	public int getSeekLength() {
+		return seekLength;
 	}
 	
 	public void setDispatcher(AudioDispatcher newDispatcher){
@@ -253,7 +262,7 @@ public class WaveformSimilarityBasedOverlapAdd implements AudioProcessor {
 		
 		if(newParameters!=null){
 			applyNewParameters();
-			dispatcher.setStepSizeAndOverlap(getInputBufferSize(),getOverlap());
+			dispatcher.setStepSizeAndOverlap(getInputBufferSize(),getOverlap(),getSeekLength());
 		}
 		
 		return true;

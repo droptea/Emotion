@@ -33,6 +33,7 @@ import java.util.logging.Logger;
 import priv.droptea.emotion.io.TarsosDSPAudioFloatConverter;
 import priv.droptea.emotion.io.TarsosDSPAudioFormat;
 import priv.droptea.emotion.io.TarsosDSPAudioInputStream;
+import priv.droptea.emotion.processor.AudioProcessor;
 
 
 
@@ -143,6 +144,8 @@ public class AudioDispatcher implements Runnable {
 	 */
 	private boolean zeroPadLastBuffer;
 
+	private int seekLength;
+
 	/**
 	 * Create a new dispatcher from a stream.
 	 * 
@@ -155,7 +158,7 @@ public class AudioDispatcher implements Runnable {
 	 *            How much consecutive buffers overlap (in samples). Half of the
 	 *            AudioBufferSize is common (512, 1024) for an FFT.
 	 */
-	public AudioDispatcher(final TarsosDSPAudioInputStream stream, final int audioBufferSize, final int bufferOverlap){
+	public AudioDispatcher(final TarsosDSPAudioInputStream stream, final int audioBufferSize, final int bufferOverlap,final int seekLength){
 		// The copy on write list allows concurrent modification of the list while
 		// it is iterated. A nice feature to have when adding AudioProcessors while
 		// the AudioDispatcher is running.
@@ -165,7 +168,7 @@ public class AudioDispatcher implements Runnable {
 		format = audioInputStream.getFormat();
 		
 			
-		setStepSizeAndOverlap(audioBufferSize, bufferOverlap);
+		setStepSizeAndOverlap(audioBufferSize, bufferOverlap,seekLength);
 		
 		audioEvent = new AudioEvent(format);
 		audioEvent.setFloatBuffer(audioFloatBuffer);
@@ -200,7 +203,8 @@ public class AudioDispatcher implements Runnable {
 	 *            How much consecutive buffers overlap (in samples). Half of the
 	 *            AudioBufferSize is common (512, 1024) for an FFT.
 	 */
-	public void setStepSizeAndOverlap(final int audioBufferSize, final int bufferOverlap){
+	public void setStepSizeAndOverlap(final int audioBufferSize, final int bufferOverlap,final int seekLength){
+		this.seekLength = seekLength;
 		audioFloatBuffer = new float[audioBufferSize];
 		floatOverlap = bufferOverlap;
 		floatStepSize = audioFloatBuffer.length - floatOverlap;
@@ -288,13 +292,14 @@ public class AudioDispatcher implements Runnable {
 			if(!stopped){			
 				//Update the number of bytes processed;
 				bytesProcessed += bytesRead;
-				audioEvent.setBytesProcessed(bytesProcessed);
+				
 					
 				// Read, convert and process consecutive overlapping buffers.
 				// Slide the buffer.
 				try {
+					audioEvent.setBytesProcessed(bytesProcessed);
 					bytesRead = readNextAudioBlock();
-					audioEvent.setOverlap(floatOverlap);
+					//audioEvent.setOverlap(floatOverlap);
 				} catch (IOException e) {
 					String message="Error while reading audio input stream: " + e.getMessage();	
 					LOG.warning(message);
@@ -468,6 +473,7 @@ public class AudioDispatcher implements Runnable {
 		//把float数据和重叠区域大小设置到事件中
 		audioEvent.setFloatBuffer(audioFloatBuffer);
 		audioEvent.setOverlap(offsetInSamples);
+		audioEvent.setSeekLength(seekLength);
 		return totalBytesRead; 
 	}
 	

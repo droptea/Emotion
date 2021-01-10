@@ -22,7 +22,7 @@
 */
 
 
-package priv.droptea.emotion.io.jvm;
+package priv.droptea.emotion.processor;
 
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioSystem;
@@ -31,7 +31,7 @@ import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.SourceDataLine;
 
 import priv.droptea.emotion.AudioEvent;
-import priv.droptea.emotion.AudioProcessor;
+import priv.droptea.emotion.io.JVMAudioInputStream;
 import priv.droptea.emotion.io.TarsosDSPAudioFormat;
 
 /**

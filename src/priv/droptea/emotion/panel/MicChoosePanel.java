@@ -22,7 +22,7 @@
 */
 
 
-package priv.droptea.emotion;
+package priv.droptea.emotion.panel;
 
 import java.awt.BorderLayout;
 import java.awt.Dimension;
@@ -37,6 +37,8 @@ import javax.swing.JPanel;
 import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
 import javax.swing.border.TitledBorder;
+
+import priv.droptea.emotion.Shared;
 
 public class MicChoosePanel extends JPanel {
 

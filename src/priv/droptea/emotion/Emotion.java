@@ -22,10 +22,17 @@ import javax.swing.UIManager;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 
-import priv.droptea.emotion.WaveformSimilarityBasedOverlapAdd.Parameters;
-import priv.droptea.emotion.io.jvm.AudioPlayer;
-import priv.droptea.emotion.io.jvm.JVMAudioInputStream;
+import priv.droptea.emotion.io.JVMAudioInputStream;
+import priv.droptea.emotion.panel.MicChoosePanel;
+import priv.droptea.emotion.panel.WaveformChartPanel;
+import priv.droptea.emotion.processor.AudioPlayer;
+import priv.droptea.emotion.processor.WaveformChartProcessor;
+import priv.droptea.emotion.processor.WaveformSimilarityBasedOverlapAdd;
+import priv.droptea.emotion.processor.WaveformSimilarityBasedOverlapAdd.Parameters;
 import priv.droptea.emotion.resample.RateTransposer;
+import java.awt.GridLayout;
+import java.awt.FlowLayout;
+import java.awt.BorderLayout;
 
 
 public class Emotion extends JFrame{
@@ -44,11 +51,21 @@ public class Emotion extends JFrame{
 		JSlider slider = new JSlider(20, 250);
 		slider.setValue(100);
 		slider.addChangeListener(sliderChangedListener);
+		
+		JPanel panel = new JPanel();
+		inputWaveformChart = WaveformChartPanel.getInstant();
+		outputWaveformChart = WaveformChartPanel.getInstant();
+		panel.add(inputWaveformChart);
+		panel.add(outputWaveformChart);
 		GroupLayout groupLayout = new GroupLayout(getContentPane());
 		groupLayout.setHorizontalGroup(
 			groupLayout.createParallelGroup(Alignment.LEADING)
-				.addComponent(slider, GroupLayout.DEFAULT_SIZE, 434, Short.MAX_VALUE)
-				.addComponent(mMicChoosePanel, GroupLayout.DEFAULT_SIZE, 434, Short.MAX_VALUE)
+				.addComponent(mMicChoosePanel, GroupLayout.DEFAULT_SIZE, 464, Short.MAX_VALUE)
+				.addComponent(slider, Alignment.TRAILING, GroupLayout.DEFAULT_SIZE, 464, Short.MAX_VALUE)
+				.addGroup(groupLayout.createSequentialGroup()
+					.addContainerGap()
+					.addComponent(panel, GroupLayout.DEFAULT_SIZE, 444, Short.MAX_VALUE)
+					.addContainerGap())
 		);
 		groupLayout.setVerticalGroup(
 			groupLayout.createParallelGroup(Alignment.LEADING)
@@ -56,8 +73,11 @@ public class Emotion extends JFrame{
 					.addComponent(mMicChoosePanel, GroupLayout.PREFERRED_SIZE, 178, GroupLayout.PREFERRED_SIZE)
 					.addPreferredGap(ComponentPlacement.RELATED)
 					.addComponent(slider, GroupLayout.PREFERRED_SIZE, 23, GroupLayout.PREFERRED_SIZE)
-					.addContainerGap(66, Short.MAX_VALUE))
+					.addPreferredGap(ComponentPlacement.RELATED)
+					.addComponent(panel, GroupLayout.DEFAULT_SIZE, 107, Short.MAX_VALUE)
+					.addContainerGap())
 		);
+		panel.setLayout(new GridLayout(1, 0, 0, 0));
 		getContentPane().setLayout(groupLayout);
 		
 	}
@@ -68,6 +88,9 @@ public class Emotion extends JFrame{
 	private AudioDispatcher dispatcher;
 	private AudioPlayer audioPlayer;
 	private Mixer curMixer;
+	
+	private WaveformChartPanel inputWaveformChart;
+	private WaveformChartPanel  outputWaveformChart;
 	
 	public static void main(String[] args) {
 		try {
@@ -136,12 +159,16 @@ public class Emotion extends JFrame{
 			line.start();
 			final AudioInputStream stream = new AudioInputStream(line);
 			JVMAudioInputStream audioStream = new JVMAudioInputStream(stream);
-			dispatcher = new AudioDispatcher(audioStream, wsola.getInputBufferSize(),wsola.getOverlap()); 
+			System.out.println("AudioDispatcher_blockSize:"+wsola.getInputBufferSize()
+			+"_getOverlap:"+wsola.getOverlap()
+			+"_getSeekLength:"+wsola.getSeekLength());
+			dispatcher = new AudioDispatcher(audioStream, wsola.getInputBufferSize(),wsola.getOverlap(),wsola.getSeekLength()); 
 			wsola.setDispatcher(dispatcher);
+			dispatcher.addAudioProcessor(new WaveformChartProcessor(inputWaveformChart));
 			dispatcher.addAudioProcessor(wsola);
 			dispatcher.addAudioProcessor(rateTransposer);
 			dispatcher.addAudioProcessor(audioPlayer);
-			
+			dispatcher.addAudioProcessor(new WaveformChartProcessor(outputWaveformChart));
 			Thread t = new Thread(dispatcher);
 			t.start();
 		}catch (Exception e) {

@@ -21,16 +21,13 @@
 * 
 */
 
-package priv.droptea.emotion.io.jvm;
+package priv.droptea.emotion.io;
 
 import java.io.IOException;
 
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioFormat.Encoding;
 import javax.sound.sampled.AudioInputStream;
-
-import priv.droptea.emotion.io.TarsosDSPAudioFormat;
-import priv.droptea.emotion.io.TarsosDSPAudioInputStream;
 
 /**
  * Encapsulates an {@link AudioInputStream} to make it work with the core TarsosDSP library.

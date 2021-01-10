@@ -24,7 +24,7 @@
 package priv.droptea.emotion.resample;
 
 import priv.droptea.emotion.AudioEvent;
-import priv.droptea.emotion.AudioProcessor;
+import priv.droptea.emotion.processor.AudioProcessor;
 
 /**
  * Sample rate transposer. Changes sample rate by using  interpolation 
@@ -41,16 +41,17 @@ public class RateTransposer implements AudioProcessor {
 	 * Create a new sample rate transposer. The factor determines the new sample
 	 * rate. E.g. 0.5 is half the sample rate, 1.0 does not change a thing and
 	 * 2.0 doubles the samplerate. If the samples are played at the original
-	 * speed the pitch doubles (0.5), does not change (1.0) or halves (0.5)
+	 * speed the pitch doubles (0.5), does not change (1.0) or halves (2)
 	 * respectively. Playback length follows the same rules, obviously.
 	 * 
 	 * @param factor
 	 *            Determines the new sample rate. E.g. 0.5 is half the sample
 	 *            rate, 1.0 does not change a thing and 2.0 doubles the sample
 	 *            rate. If the samples are played at the original speed the
-	 *            pitch doubles (0.5), does not change (1.0) or halves (0.5)
+	 *            pitch doubles (0.5), does not change (1.0) or halves (2)
 	 *            respectively. Playback length follows the same rules,
 	 *            obviously.
+	 *            factory等于2的时候，采样翻倍，语速降低为原来一半
 	 */
 	public RateTransposer(double factor){
 		this.factor = factor;

@@ -376,6 +376,7 @@ public class Resampler {
      * @param outBufferLen    Output buffer length.
      * @return the number of samples consumed and generated
      */
+    //r.process(factor, src, 0, src.length, false, out, 0, out.length);
     public Result process(double factor, float[] inBuffer, int inBufferOffset, int inBufferLen, boolean lastBatch, float[] outBuffer, int outBufferOffset, int outBufferLen) {
         FloatBuffer inputBuffer = FloatBuffer.wrap(inBuffer, inBufferOffset, inBufferLen);
         FloatBuffer outputBuffer = FloatBuffer.wrap(outBuffer, outBufferOffset, outBufferLen);

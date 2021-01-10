@@ -22,7 +22,9 @@
 */
 
 
-package priv.droptea.emotion;
+package priv.droptea.emotion.processor;
+
+import priv.droptea.emotion.AudioEvent;
 
 /**
  * <p>
