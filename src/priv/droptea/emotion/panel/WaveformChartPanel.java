@@ -73,6 +73,7 @@ public class WaveformChartPanel extends ChartPanel{
 						int overlap = audioEvent.getOverlap();
 						int seekLength = audioEvent.getSeekLength();
 						
+						
 						System.out.println("bufferSize:"+audioFloatBuffer.length
 								+"_queueSize:"+mLinkedBlockingQueue.size()
 								+"_overlay:"+overlap
