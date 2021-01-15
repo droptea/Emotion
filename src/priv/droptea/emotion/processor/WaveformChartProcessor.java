@@ -17,10 +17,8 @@ public class WaveformChartProcessor  implements AudioProcessor {
 		float[] copyBuffer = new float[audioFloatBuffer.length];
 		System.arraycopy(audioFloatBuffer,0, copyBuffer,0 ,audioFloatBuffer.length);
 		AudioEvent copyAudioEvent = new AudioEvent(audioEvent.getFormat());
-		copyAudioEvent.setFloatBuffer(copyBuffer);
-		copyAudioEvent.setBytesProcessed(audioEvent.getSamplesProcessed());
-		copyAudioEvent.setOverlap(audioEvent.getOverlap());
-		copyAudioEvent.setSeekLength(audioEvent.getSeekLength());
+		copyAudioEvent.setDataForAnalysisInWaveformChart(audioEvent.getDataForAnalysisInWaveformChart());
+		copyAudioEvent.getDataForAnalysisInWaveformChart().setFloatBufferCur(copyBuffer);
 		mWaveformChartPanel.addAudioEvent(copyAudioEvent);
 		return true;
 	}

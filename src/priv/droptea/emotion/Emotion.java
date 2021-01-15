@@ -49,14 +49,16 @@ public class Emotion extends JFrame{
 				}
 			});
 		JSlider slider = new JSlider(20, 250);
-		slider.setValue(100);
+		slider.setValue((int)(currentFactor*100));
 		slider.addChangeListener(sliderChangedListener);
 		
 		JPanel panel = new JPanel();
-		inputWaveformChart = WaveformChartPanel.getInstant();
-		outputWaveformChart = WaveformChartPanel.getInstant();
+		inputWaveformChart = WaveformChartPanel.getInstant(WaveformChartPanel.what_inputWaveformChart);
+		outputWaveformChartWsola = WaveformChartPanel.getInstant(WaveformChartPanel.what_outputWaveformChartWsola);
+		outputWaveformChartRt = WaveformChartPanel.getInstant(WaveformChartPanel.what_outputWaveformChartRt);
 		panel.add(inputWaveformChart);
-		panel.add(outputWaveformChart);
+		panel.add(outputWaveformChartWsola);
+		panel.add(outputWaveformChartRt);
 		GroupLayout groupLayout = new GroupLayout(getContentPane());
 		groupLayout.setHorizontalGroup(
 			groupLayout.createParallelGroup(Alignment.LEADING)
@@ -83,14 +85,15 @@ public class Emotion extends JFrame{
 	}
 	private WaveformSimilarityBasedOverlapAdd wsola;
 	private RateTransposer rateTransposer;
-	private double currentFactor = 1;// pitch shift factor
+	private double currentFactor = 0.5;// pitch shift factor
 	private double sampleRate;
 	private AudioDispatcher dispatcher;
 	private AudioPlayer audioPlayer;
 	private Mixer curMixer;
 	
 	private WaveformChartPanel inputWaveformChart;
-	private WaveformChartPanel  outputWaveformChart;
+	private WaveformChartPanel  outputWaveformChartWsola;
+	private WaveformChartPanel  outputWaveformChartRt;
 	
 	public static void main(String[] args) {
 		try {
@@ -104,7 +107,7 @@ public class Emotion extends JFrame{
 					}
 					JFrame frame = new Emotion();
 					frame.pack();
-					frame.setSize(800,550);
+					frame.setSize(1100,600);
 					
 					frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 					double width = Toolkit.getDefaultToolkit().getScreenSize().getWidth();
@@ -162,13 +165,15 @@ public class Emotion extends JFrame{
 			System.out.println("AudioDispatcher_blockSize:"+wsola.getInputBufferSize()
 			+"_getOverlap:"+wsola.getOverlap()
 			+"_getSeekLength:"+wsola.getSeekLength());
-			dispatcher = new AudioDispatcher(audioStream, wsola.getInputBufferSize(),wsola.getOverlap(),wsola.getSeekLength()); 
+			dispatcher = new AudioDispatcher(audioStream, wsola.getInputBufferSize(),wsola.getOverlap()); 
 			wsola.setDispatcher(dispatcher);
-			dispatcher.addAudioProcessor(new WaveformChartProcessor(inputWaveformChart));
 			dispatcher.addAudioProcessor(wsola);
+			dispatcher.addAudioProcessor(new WaveformChartProcessor(inputWaveformChart));
+			dispatcher.addAudioProcessor(new WaveformChartProcessor(outputWaveformChartWsola));
 			dispatcher.addAudioProcessor(rateTransposer);
+			dispatcher.addAudioProcessor(new WaveformChartProcessor(outputWaveformChartRt));
 			dispatcher.addAudioProcessor(audioPlayer);
-			dispatcher.addAudioProcessor(new WaveformChartProcessor(outputWaveformChart));
+			
 			Thread t = new Thread(dispatcher);
 			t.start();
 		}catch (Exception e) {

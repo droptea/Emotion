@@ -37,6 +37,8 @@ import priv.droptea.emotion.io.TarsosDSPAudioFormat;
  * @author Joren Six
  */
 public class AudioEvent {
+	private DataForAnalysisInWaveformChart dataForAnalysisInWaveformChart;
+	
 	/**
 	 * The format specifies a particular arrangement of data in a sound stream. 
 	 */
@@ -71,7 +73,6 @@ public class AudioEvent {
 
 	private int bytesProcessing;
 	
-	private int seekLength;
 	
 	
 	public AudioEvent(TarsosDSPAudioFormat format){
@@ -234,13 +235,101 @@ public class AudioEvent {
 		this.bytesProcessing = bytesProcessing;
 		
 	}
-
-	public int getSeekLength() {
-		return seekLength;
-	}
-
-	public void setSeekLength(int seekLength) {
-		this.seekLength = seekLength;
-	}
 	
+	public DataForAnalysisInWaveformChart getDataForAnalysisInWaveformChart() {
+		return dataForAnalysisInWaveformChart;
+	}
+
+	public void setDataForAnalysisInWaveformChart(DataForAnalysisInWaveformChart dataForAnalysisInWaveformChart) {
+		this.dataForAnalysisInWaveformChart = dataForAnalysisInWaveformChart;
+	}
+
+	public static class DataForAnalysisInWaveformChart{
+		/**
+		 * 实时的音频数据
+		 */
+		private float[] floatBufferCur;
+		/**
+		 * 切分出来的一块未处理过的原始音频数据
+		 */
+		private float[] floatBufferOriginal;
+		/**
+		 * 因为这一块音频数据的头部与上一块音频数据的尾部是相同的，overlapOriginal表示这段相同的音频数据的大小。
+		 * overlapOriginal=seekWinLengthWsola+overlapWsola
+		 */
+		private int overlapOriginal;
+		/**
+		 * 经过wsola处理过的音频数据，前面一部分是overlapWsola，剩下的是dataNotOverlapWsola
+		 */
+		private float[] floatBufferWsola;
+		/**
+		 * 经过wsola的波形相似度算法比对后选择窗移动的距离
+		 */
+		private int seekWinOffsetWsola;
+		/**
+		 * wsola算法设定的重叠区域大小
+		 */
+		private int overlapWsola;
+		/**
+		 * wsola算法设定的选择窗的可位移距离
+		 */
+		private int seekWinLengthWsola;
+		/**
+		 * wsola算法设定的未重叠区域大小
+		 */
+		private int dataNotOverlapWsola;
+		
+		public float[] getFloatBufferOriginal() {
+			return floatBufferOriginal;
+		}
+		public void setFloatBufferOriginal(float[] floatBufferOriginal) {
+			this.floatBufferOriginal = floatBufferOriginal;
+		}
+		
+		public int getOverlapOriginal() {
+			return overlapOriginal;
+		}
+		public void setOverlapOriginal(int overlapOriginal) {
+			this.overlapOriginal = overlapOriginal;
+		}
+		public int getSeekWinOffsetWsola() {
+			return seekWinOffsetWsola;
+		}
+		public void setSeekWinOffsetWsola(int seekWinOffsetWsola) {
+			this.seekWinOffsetWsola = seekWinOffsetWsola;
+		}
+		public int getOverlapWsola() {
+			return overlapWsola;
+		}
+		public void setOverlapWsola(int overlapWsola) {
+			this.overlapWsola = overlapWsola;
+		}
+		public int getSeekWinLengthWsola() {
+			return seekWinLengthWsola;
+		}
+		public void setSeekWinLengthWsola(int seekWinLengthWsola) {
+			this.seekWinLengthWsola = seekWinLengthWsola;
+		}
+		public float[] getFloatBufferWsola() {
+			return floatBufferWsola;
+		}
+		public void setFloatBufferWsola(float[] floatBufferWsola) {
+			this.floatBufferWsola = floatBufferWsola;
+		}
+		public int getDataNotOverlapWsola() {
+			return dataNotOverlapWsola;
+		}
+		public void setDataNotOverlapWsola(int dataNotOverlapWsola) {
+			this.dataNotOverlapWsola = dataNotOverlapWsola;
+		}
+		public float[] getFloatBufferCur() {
+			return floatBufferCur;
+		}
+		public void setFloatBufferCur(float[] floatBufferCur) {
+			this.floatBufferCur = floatBufferCur;
+		}
+		
+		
+	}
+
 }

@@ -259,10 +259,16 @@ public class WaveformSimilarityBasedOverlapAdd implements AudioProcessor {
 		
 		audioEvent.setFloatBuffer(outputFloatBuffer);
 		audioEvent.setOverlap(0);
-		
+		float[] copyBuffer = new float[outputFloatBuffer.length];
+		System.arraycopy(outputFloatBuffer,0, copyBuffer,0 ,outputFloatBuffer.length);
+		audioEvent.getDataForAnalysisInWaveformChart().setFloatBufferWsola(copyBuffer);
+		audioEvent.getDataForAnalysisInWaveformChart().setSeekWinOffsetWsola(offset);
+		audioEvent.getDataForAnalysisInWaveformChart().setSeekWinLengthWsola(seekLength);
+		audioEvent.getDataForAnalysisInWaveformChart().setOverlapWsola(overlapLength);
+		audioEvent.getDataForAnalysisInWaveformChart().setDataNotOverlapWsola(outputFloatBuffer.length-overlapLength);
 		if(newParameters!=null){
 			applyNewParameters();
-			dispatcher.setStepSizeAndOverlap(getInputBufferSize(),getOverlap(),getSeekLength());
+			dispatcher.setStepSizeAndOverlap(getInputBufferSize(),getOverlap());
 		}
 		
 		return true;
