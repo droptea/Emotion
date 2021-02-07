@@ -111,31 +111,33 @@ public class Resampler {
         this.minFactor = minFactor;
         this.maxFactor = maxFactor;
         this.Nmult = highQuality ? 35 : 11;
+        
         this.LpScl = 1.0f;
+        //凯泽窗一半的长度
         this.Nwing = Npc * (this.Nmult - 1) / 2; // # of filter coeffs in right wing
 
         double Rolloff = 0.90;
+        //定义凯泽窗的Beta系数值
         double Beta = 6;
-
+        //用凯泽窗设计的滤波器的系数数组，其实就是窗函数的Y值，每一项与时域信号的振幅一一相乘后起到抗混叠滤波的作用
+        //不懂的话去看看这个https://ccrma.stanford.edu/~jos/resample/Implementation.html
         double[] Imp64 = new double[this.Nwing];
-
+        //传入参数初始化凯泽窗设计的录波器，把窗函数的值填充到Imp64里
         FilterKit.lrsLpFilter(Imp64, this.Nwing, 0.5 * Rolloff, Beta, Npc);
+        
         this.Imp = new float[this.Nwing];
         this.ImpD = new float[this.Nwing];
-
+        //存储Imp64到Imp中
         for (int i = 0; i < this.Nwing; i++) {
             this.Imp[i] = (float) Imp64[i];
         }
-
-        // Storing deltas in ImpD makes linear interpolation
-        // of the filter coefficients faster
+        //保存每项与下一项的差值，这个值将来会用来做线性差值使用
         for (int i = 0; i < this.Nwing - 1; i++) {
             this.ImpD[i] = this.Imp[i + 1] - this.Imp[i];
         }
-
         // Last coeff. not interpolated
         this.ImpD[this.Nwing - 1] = -this.Imp[this.Nwing - 1];
-
+        //LP是低通的缩写
         // Calc reach of LP filter wing (plus some creeping room)
         int Xoff_min = (int) (((this.Nmult + 1) / 2.0) * Math.max(1.0, 1.0 / minFactor) + 10);
         int Xoff_max = (int) (((this.Nmult + 1) / 2.0) * Math.max(1.0, 1.0 / maxFactor) + 10);
@@ -146,6 +148,7 @@ public class Resampler {
         // Then allocate the buffer an extra Xoff larger so that
         // we can zero-pad up to Xoff zeros at the end when we reach the
         // end of the input samples.
+        //滤波和重采样是同时进行的，每次处理的数据根据窗函数的设计有大小要求，这里定义了一次处理数据的大小
         this.XSize = Math.max(2 * this.Xoff + 10, 4096);
         this.X = new float[this.XSize + this.Xoff];
         this.Xp = this.Xoff;
@@ -153,8 +156,10 @@ public class Resampler {
 
         // Make the outBuffer long enough to hold the entire processed
         // output of one inBuffer
+        //这是滤波和重采样处理后的数据大小，大小根据重采样参数factor变化，factory大于1表示上采样，小于1表示下采样
         int YSize = (int) (((double) this.XSize) * maxFactor + 2.0);
         this.Y = new float[YSize];
+        //多出来的处理后数据
         this.Yp = 0;
 
         this.Time = (double) this.Xoff; // Current-time pointer for converter
@@ -177,75 +182,68 @@ public class Resampler {
             throw new IllegalArgumentException("factor " + factor + " is not between minFactor=" + minFactor
                     + " and maxFactor=" + maxFactor);
         }
-
+        //输出数据的大小
         int outBufferLen = buffers.getOutputBufferLength();
+        //输入数据的大小,也就是待处理的数据大小
         int inBufferLen = buffers.getInputBufferLength();
-
+        //已被取出的输入数据的大小
+        //int inBufferUsed = 0;
+        
+        //滤波器的系数数组，就是窗函数的Y值，每一项和时域信号的振幅一一相乘，起到抗混叠滤波的作用
         float[] Imp = this.Imp;
+        //使得滤波器系数的线性插值更快
         float[] ImpD = this.ImpD;
         float LpScl = this.LpScl;
+        //窗函数数组一半的长度
         int Nwing = this.Nwing;
+        //true表示使用差值滤波器进行重采样
         boolean interpFilt = false; // TRUE means interpolate filter coeffs
-
-        int inBufferUsed = 0;
-        int outSampleCount = 0;
-
+       
+        //如果上次重采样后有多的输出数据Yp没有填充到上次的输出数组中，就把这些数据先填充到本次的输出数组里
         // Start by copying any samples still in the Y buffer to the output
         // buffer
-        if ((this.Yp != 0) && (outBufferLen - outSampleCount) > 0) {
-            int len = Math.min(outBufferLen - outSampleCount, this.Yp);
-
+        if ((this.Yp != 0) && buffers.getOutputBufferLength()> 0) {
+        	
+            int len = Math.min(buffers.getOutputBufferLength(), this.Yp);
+            /*System.out.println("____outBufferLen:"+outBufferLen
+        			+"_outSampleCount:"+outSampleCount
+        			+"_Yp:"+this.Yp
+        			+"_len:"+len);*/
             buffers.consumeOutput(this.Y, 0, len);
-            //for (int i = 0; i < len; i++) {
-            //    outBuffer[outBufferOffset + outSampleCount + i] = this.Y[i];
-            //}
-
-            outSampleCount += len;
             for (int i = 0; i < this.Yp - len; i++) {
                 this.Y[i] = this.Y[i + len];
             }
             this.Yp -= len;
+            //System.out.println("Yp:"+this.Yp);
         }
-
+        //如果本次的输出数组被填充满后Yp还有剩余，那就直接结束这次的重采样
         // If there are still output samples left, return now - we need
         // the full output buffer available to us...
         if (this.Yp != 0) {
-            return inBufferUsed == 0 && outSampleCount == 0;
+            return buffers.getInputBufferLength() == inBufferLen 
+            		&& buffers.getOutputBufferLength() == outBufferLen;
         }
-
+        //LpScl是用来规格化的变量，当factor小于1时，由于下采样的加窗导致了振幅的提高，所以采样结束后，时域信号需要乘上这个变量把振幅降回来。
         // Account for increased filter gain when using factors less than 1
         if (factor < 1) {
             LpScl = (float) (LpScl * factor);
         }
 
         while (true) {
-
-            // This is the maximum number of samples we can process
-            // per loop iteration
-
-            /*
-             * #ifdef DEBUG
-             * printf("XSize: %d Xoff: %d Xread: %d Xp: %d lastFlag: %d\n",
-             * this.XSize, this.Xoff, this.Xread, this.Xp, lastFlag); #endif
-             */
-
-            // Copy as many samples as we can from the input buffer into X
+        	//每次从输入数据中取出len大小的数据进行滤波和重采样
             int len = this.XSize - this.Xread;
-
-            if (len >= inBufferLen - inBufferUsed) {
-                len = inBufferLen - inBufferUsed;
+            //如果剩下的数据长度比len小了，就全部取出来
+            if (len >= buffers.getInputBufferLength()) {
+                len = buffers.getInputBufferLength();
             }
-
+            //取出len长度的数据放到X中,从X数组index等于Xread的位置开始放
             buffers.produceInput(this.X, this.Xread, len);
-            //for (int i = 0; i < len; i++) {
-            //    this.X[this.Xread + i] = inBuffer[inBufferOffset + inBufferUsed + i];
-            //}
-
-            inBufferUsed += len;
+            
             this.Xread += len;
 
+            
             int Nx;
-            if (lastBatch && (inBufferUsed == inBufferLen)) {
+            if (lastBatch && (buffers.getInputBufferLength() == 0)) {
                 // If these are the last samples, zero-pad the
                 // end of the input buffer and make sure we process
                 // all the way to the end
@@ -261,7 +259,7 @@ public class Resampler {
              * #ifdef DEBUG fprintf(stderr, "new len=%d Nx=%d\n", len, Nx);
              * #endif
              */
-
+            
             if (Nx <= 0) {
                 break;
             }
@@ -306,17 +304,11 @@ public class Resampler {
             this.Xp = this.Xoff;
 
             this.Yp = Nout;
-
+            //尽可能的把处理后的数据Y都保存到输出数据数组中
             // Copy as many samples as possible to the output buffer
-            if (this.Yp != 0 && (outBufferLen - outSampleCount) > 0) {
-                len = Math.min(outBufferLen - outSampleCount, this.Yp);
-
+            if (this.Yp != 0 && buffers.getOutputBufferLength() > 0) {
+                len = Math.min(buffers.getOutputBufferLength(), this.Yp);
                 buffers.consumeOutput(this.Y, 0, len);
-                //for (int i = 0; i < len; i++) {
-                //    outBuffer[outBufferOffset + outSampleCount + i] = this.Y[i];
-                //}
-
-                outSampleCount += len;
                 for (int i = 0; i < this.Yp - len; i++) {
                     this.Y[i] = this.Y[i + len];
                 }
@@ -325,12 +317,14 @@ public class Resampler {
 
             // If there are still output samples left, return now,
             //   since we need the full output buffer available
+            //如果输出数据数组存不下了，剩下的Yp就留到下一次再处理
             if (this.Yp != 0) {
                 break;
             }
         }
 
-        return inBufferUsed == 0 && outSampleCount == 0;
+        return buffers.getInputBufferLength() == inBufferLen 
+        		&& buffers.getOutputBufferLength() == outBufferLen;
     }
 
     /**
@@ -343,19 +337,21 @@ public class Resampler {
      * @return true iff resampling is complete (ie. no input samples consumed and no output samples produced)
      */
     public boolean process(double factor, final FloatBuffer inputBuffer, boolean lastBatch, final FloatBuffer outputBuffer) {
-        SampleBuffers sampleBuffers = new SampleBuffers() {
+        //初始化一个用于取出输入数据和保存输出数据的对象
+    	SampleBuffers sampleBuffers = new SampleBuffers() {
+        	//获取待处理的输入数据长度
             public int getInputBufferLength() {
                 return inputBuffer.remaining();
             }
-
+            //获取已处理的输出数据长度
             public int getOutputBufferLength() {
                 return outputBuffer.remaining();
             }
-
+            //从输入数据数组中取出待处理的数据
             public void produceInput(float[] array, int offset, int length) {
                 inputBuffer.get(array, offset, length);
             }
-
+            //保存处理后的数据到输出数据数组中
             public void consumeOutput(float[] array, int offset, int length) {
                 outputBuffer.put(array, offset, length);
             }

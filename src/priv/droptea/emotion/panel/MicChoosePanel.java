@@ -38,8 +38,6 @@ import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
 import javax.swing.border.TitledBorder;
 
-import priv.droptea.emotion.Shared;
-
 public class MicChoosePanel extends JPanel {
 
 	/**

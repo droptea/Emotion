@@ -64,14 +64,15 @@ public class RateTransposer implements AudioProcessor {
 	
 	@Override
 	public boolean process(AudioEvent audioEvent) {
-		float[] src = audioEvent.getFloatBuffer();
-		//Creation of float array in loop could be prevented if src.length is known beforehand...
-		//Possible optimization is to instantiate it outside the loop and get a pointer to the 
-		//array here, in the process method method.
-		float[] out = new float[(int) (src.length * factor)];
-		r.process(factor, src, 0, src.length, false, out, 0, out.length);
+		//处理前的音频数据
+		float[] oldAudioDataBlock = audioEvent.getFloatBuffer();
+		//处理后的音频数据保存在下面这个数组里
+		float[] newAudioDataBlock = new float[(int) (oldAudioDataBlock.length * factor)];
+		//factor大于1是上采样，增加时长，降低音调；小于1是下采样，减少时长，提高音调
+		r.process(factor, oldAudioDataBlock, 0, oldAudioDataBlock.length
+				, false, newAudioDataBlock, 0, newAudioDataBlock.length);
 		//The size of the output buffer changes (according to factor). 
-		audioEvent.setFloatBuffer(out);
+		audioEvent.setFloatBuffer(newAudioDataBlock);
 		//Update overlap offset to match new buffer size
 		audioEvent.setOverlap((int) (audioEvent.getOverlap() * factor));
 		return true;

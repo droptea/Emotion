@@ -1,5 +1,6 @@
 package priv.droptea.emotion;
 
+import java.awt.GridLayout;
 import java.awt.Toolkit;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
@@ -7,7 +8,6 @@ import java.lang.reflect.InvocationTargetException;
 
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
-import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.DataLine;
 import javax.sound.sampled.Mixer;
 import javax.sound.sampled.TargetDataLine;
@@ -26,13 +26,11 @@ import priv.droptea.emotion.io.JVMAudioInputStream;
 import priv.droptea.emotion.panel.MicChoosePanel;
 import priv.droptea.emotion.panel.WaveformChartPanel;
 import priv.droptea.emotion.processor.AudioPlayer;
+import priv.droptea.emotion.processor.GainProcessor;
 import priv.droptea.emotion.processor.WaveformChartProcessor;
 import priv.droptea.emotion.processor.WaveformSimilarityBasedOverlapAdd;
 import priv.droptea.emotion.processor.WaveformSimilarityBasedOverlapAdd.Parameters;
 import priv.droptea.emotion.resample.RateTransposer;
-import java.awt.GridLayout;
-import java.awt.FlowLayout;
-import java.awt.BorderLayout;
 
 
 public class Emotion extends JFrame{
@@ -85,7 +83,8 @@ public class Emotion extends JFrame{
 	}
 	private WaveformSimilarityBasedOverlapAdd wsola;
 	private RateTransposer rateTransposer;
-	private double currentFactor = 0.5;// pitch shift factor
+	private GainProcessor gain;
+	private double currentFactor = 1;// pitch shift factor
 	private double sampleRate;
 	private AudioDispatcher dispatcher;
 	private AudioPlayer audioPlayer;
@@ -153,6 +152,7 @@ public class Emotion extends JFrame{
 			if(audioPlayer==null) {
 				audioPlayer = new AudioPlayer(mFormat);
 			}
+			gain = new GainProcessor(1.0);
 			rateTransposer = new RateTransposer(currentFactor);
 			sampleRate =  mFormat.getSampleRate();
 			wsola = new WaveformSimilarityBasedOverlapAdd(Parameters.musicDefaults(currentFactor,sampleRate));
@@ -172,6 +172,7 @@ public class Emotion extends JFrame{
 			dispatcher.addAudioProcessor(new WaveformChartProcessor(outputWaveformChartWsola));
 			dispatcher.addAudioProcessor(rateTransposer);
 			dispatcher.addAudioProcessor(new WaveformChartProcessor(outputWaveformChartRt));
+			dispatcher.addAudioProcessor(gain);
 			dispatcher.addAudioProcessor(audioPlayer);
 			
 			Thread t = new Thread(dispatcher);
