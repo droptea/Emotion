@@ -36,7 +36,7 @@
 package priv.droptea.emotion.resample;
 
 import java.nio.FloatBuffer;
-
+//参考资料https://ccrma.stanford.edu/~jos/resample/Implementation.html
 public class Resampler {
 
     public static class Result {
@@ -120,7 +120,7 @@ public class Resampler {
         //定义凯泽窗的Beta系数值
         double Beta = 6;
         //用凯泽窗设计的滤波器的系数数组，其实就是窗函数的Y值，每一项与时域信号的振幅一一相乘后起到抗混叠滤波的作用
-        //不懂的话去看看这个https://ccrma.stanford.edu/~jos/resample/Implementation.html
+        
         double[] Imp64 = new double[this.Nwing];
         //传入参数初始化凯泽窗设计的录波器，把窗函数的值填充到Imp64里
         FilterKit.lrsLpFilter(Imp64, this.Nwing, 0.5 * Rolloff, Beta, Npc);
@@ -186,8 +186,6 @@ public class Resampler {
         int outBufferLen = buffers.getOutputBufferLength();
         //输入数据的大小,也就是待处理的数据大小
         int inBufferLen = buffers.getInputBufferLength();
-        //已被取出的输入数据的大小
-        //int inBufferUsed = 0;
         
         //滤波器的系数数组，就是窗函数的Y值，每一项和时域信号的振幅一一相乘，起到抗混叠滤波的作用
         float[] Imp = this.Imp;
@@ -230,18 +228,21 @@ public class Resampler {
         }
 
         while (true) {
-        	//每次从输入数据中取出len大小的数据进行滤波和重采样
-            int len = this.XSize - this.Xread;
-            //如果剩下的数据长度比len小了，就全部取出来
-            if (len >= buffers.getInputBufferLength()) {
-                len = buffers.getInputBufferLength();
-            }
-            //取出len长度的数据放到X中,从X数组index等于Xread的位置开始放
+        	System.out.println("this.Xread"+this.Xread+"buffers.getInputBufferLength()"+buffers.getInputBufferLength());
+        	//Xread是用来记录X数组已经存储的数据的大小，Xread之所以初始化为Xoff，是为了让第一次循环也能进行后面的卷积操作
+            //最初的这段xoff实际上相当于填充了参与左翼卷积的，后面不用对是否是第一次循环进行判断，使得代码更简洁。
+        	//XSize是X数组的长度加上一个Xoff，但我觉得不用加Xoff也可以，不过多了也不影响
+        	//len就是本次循环计划从输入数据中取出的数据大小，如果输入数据足够的话，len就等于X数组去掉Xread后剩下可存储的大小，不够了就把输入数据都去取出来
+            int len = Math.min(this.XSize - this.Xread, buffers.getInputBufferLength());
+            
+            //取出len长度的数据放到X中,从X数组index等于Xread的位置开始放,
             buffers.produceInput(this.X, this.Xread, len);
             
             this.Xread += len;
 
-            
+            //Nx表示卷积运算结果的index长度，例如当time为xoff时，用的是X数组index为0到2xoff的数据与凯撒窗函数进行卷积运算，
+            //最终卷积运算求出来的结果是Y(2xoff)的值，所以这段Xread长度的数据求出来Y的值的范围是2xoff到Xread.所以Y的长度是Nx=Xread-2xoff
+            //time被初始化为xoff,是为了保证左翼的完整性，也就是time-xoff不会小于0而导致数据不存在。
             int Nx;
             if (lastBatch && (buffers.getInputBufferLength() == 0)) {
                 // If these are the last samples, zero-pad the
@@ -254,12 +255,11 @@ public class Resampler {
             } else {
                 Nx = this.Xread - 2 * this.Xoff;
             }
-
-            /*
-             * #ifdef DEBUG fprintf(stderr, "new len=%d Nx=%d\n", len, Nx);
-             * #endif
-             */
-            
+            System.out.println("len:"+len+"_Nx:"+Nx
+            		+"_Xsize"+this.XSize+"_Xread:"+this.Xread
+            		+"_Xoff:"+this.Xoff+"_Nmult"+this.Nmult
+            		);
+         
             if (Nx <= 0) {
                 break;
             }
@@ -277,24 +277,27 @@ public class Resampler {
              * printf("Nout: %d\n", Nout);
              * #endif
              */
-
+            //把Time的值还原回xoff，其实这样写不能真正还原回去，下面会说
             this.Time -= Nx; // Move converter Nx samples back in time
+            //Xp用来记录已处理的输入数据的index位置，其实这样也不能完全表示已处理数据的位置，下面会说
             this.Xp += Nx; // Advance by number of samples processed
-
+            //因为上面的lrsSrcUp和lrsSrcUD不能保证计算结束后，this.Time就是刚好增加了Nx（感觉好像可以把这个多出来的问题解决掉）
+            //所以下面的操作就是把this.Time真正的还原回xoff,并且把多的加到Xp里去
             // Calc time accumulation in Time
             int Ncreep = (int) (this.Time) - this.Xoff;
+            System.out.println("Ncreep"+Ncreep);
             if (Ncreep != 0) {
                 this.Time -= Ncreep; // Remove time accumulation
                 this.Xp += Ncreep; // and add it to read pointer
             }
-
+            //相当于把本次取出的输入数据的最后2Xoff的数据保存到下一次作为卷积运算使用
             // Copy part of input signal that must be re-used
             int Nreuse = this.Xread - (this.Xp - this.Xoff);
 
             for (int i = 0; i < Nreuse; i++) {
                 this.X[i] = this.X[i + (this.Xp - this.Xoff)];
             }
-
+            System.out.println("Nreuse"+Nreuse);
             /*
             #ifdef DEBUG
             printf("New Xread=%d\n", Nreuse);
@@ -319,6 +322,7 @@ public class Resampler {
             //   since we need the full output buffer available
             //如果输出数据数组存不下了，剩下的Yp就留到下一次再处理
             if (this.Yp != 0) {
+            	System.out.println("Yp"+Yp);
                 break;
             }
         }

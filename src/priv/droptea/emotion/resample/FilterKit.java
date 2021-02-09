@@ -155,7 +155,7 @@ class FilterKit {
         float[] Hp_array = Imp;
         int Hp_index = (int) Ph;
 
-        int End_index = Nwing;
+        int End_index = Nwing;// Npc * (this.Nmult - 1) / 2,this.Nmult = highQuality ? 35 : 11;
 
         float[] Hdp_array = ImpD;
         int Hdp_index = (int) Ph;
@@ -168,6 +168,7 @@ class FilterKit {
         if (Inc == 1) // If doing right wing...
         { // ...drop extra coeff, so when Ph is
             End_index--; // 0.5, we don't do too many mult's
+            //计算右翼时，如果ph为0，表示刚刚好，所以Xp_array的第一个值只需要参与左翼的卷积运算
             if (Ph == 0) // If the phase is zero...
             { // ...then we've already skipped the
                 Hp_index += Resampler.Npc; // first sample, so we must also
@@ -175,25 +176,31 @@ class FilterKit {
             }
         }
 
-        if (Interp)
+        if (Interp) {
             while (Hp_index < End_index) {
                 t = Hp_array[Hp_index]; /* Get filter coeff */
+                
                 t += Hdp_array[Hdp_index] * a; /* t is now interp'd filter coeff */
                 Hdp_index += Resampler.Npc; /* Filter coeff differences step */
+                
                 t *= Xp_array[Xp_index]; /* Mult coeff by input sample */
                 v += t; /* The filter output */
                 Hp_index += Resampler.Npc; /* Filter coeff step */
                 Xp_index += Inc; /* Input signal step. NO CHECK ON BOUNDS */
             }
-        else
+        }else {
+        	//音频时域数据与窗函数的卷积运算,Hp_array是凯泽窗关于Y轴对称的右边的值组成的数组，Xp_array是切割出来的一小段音频数据
             while (Hp_index < End_index) {
+            	//取出窗函数数组的值t
                 t = Hp_array[Hp_index]; /* Get filter coeff */
+                //t与对应的归一化的音频振幅值相乘
                 t *= Xp_array[Xp_index]; /* Mult coeff by input sample */
+                //v用来记录卷积结果
                 v += t; /* The filter output */
                 Hp_index += Resampler.Npc; /* Filter coeff step */
                 Xp_index += Inc; /* Input signal step. NO CHECK ON BOUNDS */
             }
-
+        }
         return v;
     }
 
