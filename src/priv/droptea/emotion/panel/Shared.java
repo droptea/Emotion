@@ -54,17 +54,13 @@ public class Shared {
 	}
 	public static String toLocalString(Object info)
 	{
-		if(!isWindows())
-			return info.toString();
-		String defaultEncoding = Charset.defaultCharset().toString();
-		try
-		{
-			return new String(info.toString().getBytes("windows-1252"), defaultEncoding);
-		}
-		catch(UnsupportedEncodingException ex)
-		{
-			return info.toString();
-		}
+		return info.toString();
+		/*
+		 * if(!isWindows()) return info.toString(); String defaultEncoding =
+		 * Charset.defaultCharset().toString(); try { return new
+		 * String(info.toString().getBytes("windows-1252"), defaultEncoding); }
+		 * catch(UnsupportedEncodingException ex) { return info.toString(); }
+		 */
 	}
 	private static String OS = null;
 	public static String getOsName()

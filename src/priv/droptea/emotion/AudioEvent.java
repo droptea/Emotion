@@ -254,10 +254,9 @@ public class AudioEvent {
 		 */
 		private float[] floatBufferOriginal;
 		/**
-		 * 因为这一块音频数据的头部与上一块音频数据的尾部是相同的，overlapOriginal表示这段相同的音频数据的大小。
-		 * overlapOriginal=seekWinLengthWsola+overlapWsola
+		 * 分析帧里和上一帧重复的数据长度。
 		 */
-		private int overlapOriginal;
+		private int duplicateLengthInAnalysisFrame;
 		/**
 		 * 经过wsola处理过的音频数据，前面一部分是overlapWsola，剩下的是dataNotOverlapWsola
 		 */
@@ -273,7 +272,7 @@ public class AudioEvent {
 		/**
 		 * wsola算法设定的选择窗的可位移距离
 		 */
-		private int seekWinLengthWsola;
+		private int seekWindowMoveLengthWsola;
 		/**
 		 * wsola算法设定的未重叠区域大小
 		 */
@@ -286,12 +285,7 @@ public class AudioEvent {
 			this.floatBufferOriginal = floatBufferOriginal;
 		}
 		
-		public int getOverlapOriginal() {
-			return overlapOriginal;
-		}
-		public void setOverlapOriginal(int overlapOriginal) {
-			this.overlapOriginal = overlapOriginal;
-		}
+		
 		public int getSeekWinOffsetWsola() {
 			return seekWinOffsetWsola;
 		}
@@ -304,12 +298,7 @@ public class AudioEvent {
 		public void setOverlapWsola(int overlapWsola) {
 			this.overlapWsola = overlapWsola;
 		}
-		public int getSeekWinLengthWsola() {
-			return seekWinLengthWsola;
-		}
-		public void setSeekWinLengthWsola(int seekWinLengthWsola) {
-			this.seekWinLengthWsola = seekWinLengthWsola;
-		}
+		
 		public float[] getFloatBufferWsola() {
 			return floatBufferWsola;
 		}
@@ -327,6 +316,19 @@ public class AudioEvent {
 		}
 		public void setFloatBufferCur(float[] floatBufferCur) {
 			this.floatBufferCur = floatBufferCur;
+		}
+		
+		public int getSeekWindowMoveLengthWsola() {
+			return seekWindowMoveLengthWsola;
+		}
+		public void setSeekWindowMoveLengthWsola(int seekWindowMoveLengthWsola) {
+			this.seekWindowMoveLengthWsola = seekWindowMoveLengthWsola;
+		}
+		public int getDuplicateLengthInAnalysisFrame() {
+			return duplicateLengthInAnalysisFrame;
+		}
+		public void setDuplicateLengthInAnalysisFrame(int duplicateLengthInAnalysisFrame) {
+			this.duplicateLengthInAnalysisFrame = duplicateLengthInAnalysisFrame;
 		}
 		
 		

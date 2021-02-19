@@ -110,7 +110,6 @@ public final class AudioPlayer implements AudioProcessor {
 			System.out.println("Will block " + line.getMicrosecondPosition());
 		}
 		*/
-		
 		int bytesWritten = line.write(audioEvent.getByteBuffer(), byteOverlap, byteStepSize);
 		if(bytesWritten != byteStepSize){
 			System.err.println(String.format("Expected to write %d bytes but only wrote %d bytes",byteStepSize,bytesWritten));

@@ -50,20 +50,26 @@ import priv.droptea.emotion.AudioEvent;
  * @author Joren Six
  * @author Olli Parviainen
  */
-public class WaveformSimilarityBasedOverlapAdd implements AudioProcessor {	
+public class WsolaProcessor implements AudioProcessor {	
+	//搜索窗长度
 	private int seekWindowLength;
-	private int seekLength;
+	//搜索窗可移动距离长度
+	private int seekWindowMoveLength;
+	//叠加区域长度
 	private int overlapLength;
-	
+	//该数组保存的是上一块音频数据末尾的overlapLegnth长度的数据，用于对下一块音频数据进行波形相似查找，找到后进行叠加输出
 	private float[] pMidBuffer;	
 	private float[] pRefMidBuffer;
-	private float[] outputFloatBuffer;
-	
-	private int intskip;
-	private int sampleReq; 
-	
+	private float[] compositeFrameBuffer;
+	//分析帧的长度
+	private int analysisFrameLength;
+	//有效帧长度，有效帧是分析帧中的有效数据
+	private int effectiveFrameLengthInAnalysisFrame;
+	//分析帧中重复上一帧数据的长度
+	private int duplicateLengthInAnalysisFrame;
+	//表示播放速度，tempo大于1时音频加快播放，也就是删掉一些音频数据；tempo小于1时语速减慢，也就是重叠一些音频数据
 	private double tempo;
-	
+	//用于切分输入音频数据并分发音频块的分发器
 	private AudioDispatcher dispatcher;
 
 	private Parameters newParameters;
@@ -72,7 +78,7 @@ public class WaveformSimilarityBasedOverlapAdd implements AudioProcessor {
 	 * Create a new instance based on algorithm parameters for a certain audio format.
 	 * @param params The parameters for the algorithm.
 	 */
-	public WaveformSimilarityBasedOverlapAdd(Parameters  params){
+	public WsolaProcessor(Parameters  params){
 		setParameters(params);
 		applyNewParameters();
 	}
@@ -84,10 +90,6 @@ public class WaveformSimilarityBasedOverlapAdd implements AudioProcessor {
 		return newParameters;
 	}
 	
-	public int getSeekLength() {
-		return seekLength;
-	}
-	
 	public void setDispatcher(AudioDispatcher newDispatcher){
 		this.dispatcher = newDispatcher;
 	}
@@ -96,48 +98,49 @@ public class WaveformSimilarityBasedOverlapAdd implements AudioProcessor {
 		Parameters params = newParameters;
 		int oldOverlapLength = overlapLength;
 		overlapLength = (int) ((params.getSampleRate() * params.getOverlapMs())/1000);
-		seekWindowLength = (int) ((params.getSampleRate() * params.getSequenceMs())/1000);
-		seekLength = (int) ((params.getSampleRate() *  params.getSeekWindowMs())/1000);
-		
+		seekWindowLength = (int) ((params.getSampleRate() * params.getSeekWindowMs())/1000);
+		seekWindowMoveLength = (int) ((params.getSampleRate() *  params.getSeekWindowMoveMs())/1000);
 		tempo = params.getTempo();
 		
 		//pMidBuffer and pRefBuffer are initialized with 8 times the needed length to prevent a reset
 		//of the arrays when overlapLength changes.
-		
 		if(overlapLength > oldOverlapLength * 8 && pMidBuffer==null){
 			pMidBuffer = new float[overlapLength * 8]; //overlapLengthx2?
 			pRefMidBuffer = new float[overlapLength * 8];//overlapLengthx2?
 			System.out.println("New overlapLength" + overlapLength);
 		}
+		//这里是在根据tempo的值来为AudioDispatcher定义有效帧effectiveFrameLengthInAnalysisFrame的长度。
+		//由两个公式：合成帧=搜索窗-重叠区域，播放速度=有效帧/合成帧,得到有效帧=播放速度*(搜索窗-重叠区域)，于是就有了下面的公式
+		effectiveFrameLengthInAnalysisFrame = (int)Math.ceil(tempo * (seekWindowLength - overlapLength));
+		//分析帧必须要比搜索窗+搜索窗可移动距离大
+		analysisFrameLength = Math.max(effectiveFrameLengthInAnalysisFrame + overlapLength, seekWindowLength) + seekWindowMoveLength;
+		duplicateLengthInAnalysisFrame = analysisFrameLength-effectiveFrameLengthInAnalysisFrame;
 		
-		double nominalSkip = tempo * (seekWindowLength - overlapLength);
-		intskip = (int) (nominalSkip + 0.5);
-		
-		sampleReq = Math.max(intskip + overlapLength, seekWindowLength) + seekLength;
-		
-		float[] prevOutputBuffer = outputFloatBuffer;
-		outputFloatBuffer = new float[getOutputBufferSize()];
-		if(prevOutputBuffer!=null){
+		float[] prevCompositeFrameBuffer = compositeFrameBuffer;
+		compositeFrameBuffer = new float[getCompositeFrameLength()];
+		if(prevCompositeFrameBuffer!=null){
 			System.out.println("Copy outputFloatBuffer contents");
-			for(int i = 0 ; i < prevOutputBuffer.length && i < outputFloatBuffer.length ; i++){
-			 outputFloatBuffer[i] = prevOutputBuffer[i];
+			for(int i = 0 ; i < prevCompositeFrameBuffer.length && i < compositeFrameBuffer.length ; i++){
+				compositeFrameBuffer[i] = prevCompositeFrameBuffer[i];
 			}
 		}
 		
 		newParameters = null;
 	}
 	
-	public int getInputBufferSize(){
-		return sampleReq;
+	public int getAnalysisFrameLength(){
+		return analysisFrameLength;
 	}
 	
-	private int getOutputBufferSize(){
+	public int getDuplicateLengthInAnalysisFrame(){
+		return duplicateLengthInAnalysisFrame;
+	}
+	//获取合成帧长度
+	private int getCompositeFrameLength(){
 		return seekWindowLength - overlapLength;
 	}
 	
-	public int getOverlap(){
-		return sampleReq-intskip;
-	}
+	
 	
 	
 	/**
@@ -180,19 +183,18 @@ public class WaveformSimilarityBasedOverlapAdd implements AudioProcessor {
 		// Scans for the best correlation value by testing each possible
 		// position
 		// over the permitted range.
-		for (tempOffset = 0; tempOffset < seekLength; tempOffset++) {
+		for (tempOffset = 0; tempOffset < seekWindowMoveLength; tempOffset++) {
 
 			comparePosition = postion + tempOffset;
-
+			//计算两个波形的相似度
 			// Calculates correlation value for the mixing position
 			// corresponding
 			// to 'tempOffset'
 			currentCorrelation = (double) calcCrossCorr(pRefMidBuffer, inputBuffer,comparePosition);
-			// heuristic rule to slightly favor values close to mid of the
-			// range
-			double tmp = (double) (2 * tempOffset - seekLength) / seekLength;
+			//中间的位置拥有更大的权重
+			// heuristic rule to slightly favor values close to mid of the range
+			double tmp = (double) (2 * tempOffset - seekWindowMoveLength) / seekWindowMoveLength;
 			currentCorrelation = ((currentCorrelation + 0.1) * (1.0 - 0.25 * tmp * tmp));
-
 			// Checks for the highest correlation value
 			if (currentCorrelation > bestCorrelation) {
 				bestCorrelation = currentCorrelation;
@@ -235,40 +237,31 @@ public class WaveformSimilarityBasedOverlapAdd implements AudioProcessor {
 	@Override
 	public boolean process(AudioEvent audioEvent) {
 		float[] audioFloatBuffer = audioEvent.getFloatBuffer();
-		assert audioFloatBuffer.length == getInputBufferSize();
-		
-		//Search for the best overlapping position.
+		assert audioFloatBuffer.length == getAnalysisFrameLength();
+		//用上一个搜索窗尾部重叠区域大小的数据（波形数据）作为参考，从当前分析帧头部开始往后平移寻找最相似的数据（相似的波形数据），返回平移的距离
 		int offset =  seekBestOverlapPosition(audioFloatBuffer,0);
+		//把两个相似波形叠加并添加到合成帧数组的开头
+		overlap(compositeFrameBuffer,0,audioFloatBuffer,offset);
+		//把搜索窗中的非重叠区域直接加到合成帧组成完整的合成帧
+		int notOverlapLength = seekWindowLength - 2 * overlapLength;
+		System.arraycopy(audioFloatBuffer, offset + overlapLength, compositeFrameBuffer, overlapLength, notOverlapLength);
+	    //保存搜索窗尾部重叠区域大小的数据到pMidBuffer数组里，用于下一个分析帧进行相似波形匹配
+		System.arraycopy(audioFloatBuffer, offset + notOverlapLength + overlapLength, pMidBuffer, 0, overlapLength);
 		
-		// Mix the samples in the 'inputBuffer' at position of 'offset' with the 
-        // samples in 'midBuffer' using sliding overlapping
-        // ... first partially overlap with the end of the previous sequence
-        // (that's in 'midBuffer')
-		overlap(outputFloatBuffer,0,audioFloatBuffer,offset);
-			
-		//copy sequence samples from input to output			
-		int sequenceLength = seekWindowLength - 2 * overlapLength;
-		System.arraycopy(audioFloatBuffer, offset + overlapLength, outputFloatBuffer, overlapLength, sequenceLength);
+		assert compositeFrameBuffer.length == getCompositeFrameLength();
 		
-	     // Copies the end of the current sequence from 'inputBuffer' to 
-        // 'midBuffer' for being mixed with the beginning of the next 
-        // processing sequence and so on
-		System.arraycopy(audioFloatBuffer, offset + sequenceLength + overlapLength, pMidBuffer, 0, overlapLength);
-		
-		assert outputFloatBuffer.length == getOutputBufferSize();
-		
-		audioEvent.setFloatBuffer(outputFloatBuffer);
+		audioEvent.setFloatBuffer(compositeFrameBuffer);
 		audioEvent.setOverlap(0);
-		float[] copyBuffer = new float[outputFloatBuffer.length];
-		System.arraycopy(outputFloatBuffer,0, copyBuffer,0 ,outputFloatBuffer.length);
+		float[] copyBuffer = new float[compositeFrameBuffer.length];
+		System.arraycopy(compositeFrameBuffer,0, copyBuffer,0 ,compositeFrameBuffer.length);
 		audioEvent.getDataForAnalysisInWaveformChart().setFloatBufferWsola(copyBuffer);
 		audioEvent.getDataForAnalysisInWaveformChart().setSeekWinOffsetWsola(offset);
-		audioEvent.getDataForAnalysisInWaveformChart().setSeekWinLengthWsola(seekLength);
+		audioEvent.getDataForAnalysisInWaveformChart().setSeekWindowMoveLengthWsola(seekWindowMoveLength);
 		audioEvent.getDataForAnalysisInWaveformChart().setOverlapWsola(overlapLength);
-		audioEvent.getDataForAnalysisInWaveformChart().setDataNotOverlapWsola(outputFloatBuffer.length-overlapLength);
+		audioEvent.getDataForAnalysisInWaveformChart().setDataNotOverlapWsola(compositeFrameBuffer.length-overlapLength);
 		if(newParameters!=null){
 			applyNewParameters();
-			dispatcher.setStepSizeAndOverlap(getInputBufferSize(),getOverlap());
+			dispatcher.setStepSizeAndOverlap(getAnalysisFrameLength(),getDuplicateLengthInAnalysisFrame());
 		}
 		
 		return true;
@@ -288,91 +281,44 @@ public class WaveformSimilarityBasedOverlapAdd implements AudioProcessor {
 	 * @author Joren Six
 	 */
 	public static class Parameters {
-		private final int sequenceMs;
+		//sequenceMs个毫秒的采样数据作为搜索窗的长度
 		private final int seekWindowMs;
+		//seekWindowMoveMs个毫秒的采样数据作为搜索窗可移动的距离长度
+		private final int seekWindowMoveMs;
+		//overlapMs个毫秒的采样数据个数作为叠加区域长度
 		private final int overlapMs;
-		
+		//表示播放速度，tempo大于1时音频加快播放，也就是删掉一些音频数据；tempo小于1时语速减慢，也就是重叠一些音频数据
 		private final double tempo;
+		//表示音频采样率，例如44100.0
 		private final double sampleRate;
 
-		/**
-		 * @param tempo
-		 *            The tempo change 1.0 means unchanged, 2.0 is + 100% , 0.5
-		 *            is half of the speed.
-		 * @param sampleRate
-		 *            The sample rate of the audio 44.1kHz is common.
-		 * @param newSequenceMs
-		 *            Length of a single processing sequence, in milliseconds.
-		 *            This determines to how long sequences the original sound
-		 *            is chopped in the time-stretch algorithm.
-		 * 
-		 *            The larger this value is, the lesser sequences are used in
-		 *            processing. In principle a bigger value sounds better when
-		 *            slowing down tempo, but worse when increasing tempo and
-		 *            vice versa.
-		 * 
-		 *            Increasing this value reduces computational burden & vice
-		 *            versa.
-		 * @param newSeekWindowMs
-		 *            Seeking window length in milliseconds for algorithm that
-		 *            finds the best possible overlapping location. This
-		 *            determines from how wide window the algorithm may look for
-		 *            an optimal joining location when mixing the sound
-		 *            sequences back together.
-		 * 
-		 *            The bigger this window setting is, the higher the
-		 *            possibility to find a better mixing position will become,
-		 *            but at the same time large values may cause a "drifting"
-		 *            artifact because consequent sequences will be taken at
-		 *            more uneven intervals.
-		 * 
-		 *            If there's a disturbing artifact that sounds as if a
-		 *            constant frequency was drifting around, try reducing this
-		 *            setting.
-		 * 
-		 *            Increasing this value increases computational burden &
-		 *            vice versa.
-		 * @param newOverlapMs
-		 *            Overlap length in milliseconds. When the chopped sound
-		 *            sequences are mixed back together, to form a continuous
-		 *            sound stream, this parameter defines over how long period
-		 *            the two consecutive sequences are let to overlap each
-		 *            other.
-		 * 
-		 *            This shouldn't be that critical parameter. If you reduce
-		 *            the DEFAULT_SEQUENCE_MS setting by a large amount, you
-		 *            might wish to try a smaller value on this.
-		 * 
-		 *            Increasing this value increases computational burden &
-		 *            vice versa.
-		 */
-		public Parameters(double tempo, double sampleRate, int newSequenceMs, int newSeekWindowMs, int newOverlapMs) {
+		public Parameters(double tempo, double sampleRate, int seekWindowMs, int seekWindowMoveMs, int overlapMs) {
 			this.tempo = tempo;
 			this.sampleRate = sampleRate;
-			this.overlapMs = newOverlapMs;
-			this.seekWindowMs = newSeekWindowMs;
-			this.sequenceMs = newSequenceMs;
+			this.overlapMs = overlapMs;
+			this.seekWindowMoveMs = seekWindowMoveMs;
+			this.seekWindowMs = seekWindowMs;
 		}
 		
 		public static Parameters speechDefaults(double tempo, double sampleRate){
-			int sequenceMs = 40;
-			int seekWindowMs = 15;
-			int overlapMs = 12;
-			return new Parameters(tempo,sampleRate,sequenceMs, seekWindowMs,overlapMs);
+			int seekWindowMs = 40;//40
+			int seekWindowMoveMs = 15;//15
+			int overlapMs = 12;//12
+			return new Parameters(tempo,sampleRate,seekWindowMs, seekWindowMoveMs,overlapMs);
 		}
 		
 		public static Parameters musicDefaults(double tempo, double sampleRate){
-			int sequenceMs = 82;
-			int seekWindowMs =  28;
+			int seekWindowMs = 82;
+			int seekWindowMoveMs =  28;
 			int overlapMs = 12;
-			return new Parameters(tempo,sampleRate,sequenceMs, seekWindowMs,overlapMs);
+			return new Parameters(tempo,sampleRate,seekWindowMs, seekWindowMoveMs,overlapMs);
 		}
 		
 		public static Parameters slowdownDefaults(double tempo, double sampleRate){
-			int sequenceMs = 100;
-			int seekWindowMs =  35;
+			int seekWindowMs = 100;
+			int seekWindowMoveMs =  35;
 			int overlapMs = 20;
-			return new Parameters(tempo,sampleRate,sequenceMs, seekWindowMs,overlapMs);
+			return new Parameters(tempo,sampleRate,seekWindowMs, seekWindowMoveMs,overlapMs);
 		}
 		
 		public static Parameters automaticDefaults(double tempo, double sampleRate){
@@ -389,22 +335,22 @@ public class WaveformSimilarityBasedOverlapAdd implements AudioProcessor {
 			double seekK =((seekHigh - seekLow) / (tempoHigh-tempoLow));
 			double seekC = seekLow - seekK * seekLow;
 			
-			int sequenceMs = (int) (sequenceC + sequenceK * tempo + 0.5);
-			int seekWindowMs =  (int) (seekC + seekK * tempo + 0.5);
+			int seekWindowMs = (int) (sequenceC + sequenceK * tempo + 0.5);
+			int seekWindowMoveMs =  (int) (seekC + seekK * tempo + 0.5);
 			int overlapMs = 12;
-			return new Parameters(tempo,sampleRate,sequenceMs, seekWindowMs,overlapMs);
+			return new Parameters(tempo,sampleRate,seekWindowMs, seekWindowMoveMs,overlapMs);
 		}
 
 		public double getOverlapMs() {
 			return overlapMs;
 		}
 
-		public double getSequenceMs() {
-			return sequenceMs;
-		}
-
 		public double getSeekWindowMs() {
 			return seekWindowMs;
+		}
+
+		public double getSeekWindowMoveMs() {
+			return seekWindowMoveMs;
 		}
 		
 		public double getSampleRate() {

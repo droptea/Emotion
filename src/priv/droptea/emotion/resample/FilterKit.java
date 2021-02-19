@@ -76,7 +76,7 @@ package priv.droptea.emotion.resample;
  *               10.056  6.4     0.000087  -100
  * </pre>
  */
-class FilterKit {
+public class FilterKit {
 
     // Max error acceptable in Izero
     private static final double IzeroEPSILON = 1E-21;

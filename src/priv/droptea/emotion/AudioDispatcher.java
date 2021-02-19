@@ -48,7 +48,6 @@ import priv.droptea.emotion.processor.AudioProcessor;
  */
 public class AudioDispatcher implements Runnable {
 
-
 	/**
 	 * Log messages.
 	 */
@@ -478,7 +477,7 @@ public class AudioDispatcher implements Runnable {
 		float[] copyBuffer = new float[audioFloatBuffer.length];
 		System.arraycopy(audioFloatBuffer,0, copyBuffer,0 ,audioFloatBuffer.length);
 		mDataForAnalysisInWaveformChart.setFloatBufferOriginal(copyBuffer);
-		mDataForAnalysisInWaveformChart.setOverlapOriginal(offsetInSamples);
+		mDataForAnalysisInWaveformChart.setDuplicateLengthInAnalysisFrame(offsetInSamples);
 		audioEvent.setDataForAnalysisInWaveformChart(mDataForAnalysisInWaveformChart);
 		return totalBytesRead; 
 	}
