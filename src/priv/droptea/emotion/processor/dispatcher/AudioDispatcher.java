@@ -22,7 +22,7 @@
 */
 
 
-package priv.droptea.emotion;
+package priv.droptea.emotion.processor.dispatcher;
 
 import java.io.IOException;
 import java.util.List;
@@ -30,11 +30,12 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import priv.droptea.emotion.AudioEvent;
 import priv.droptea.emotion.AudioEvent.DataForAnalysisInWaveformChart;
-import priv.droptea.emotion.io.TarsosDSPAudioFloatConverter;
-import priv.droptea.emotion.io.TarsosDSPAudioFormat;
-import priv.droptea.emotion.io.TarsosDSPAudioInputStream;
 import priv.droptea.emotion.processor.AudioProcessor;
+import priv.droptea.emotion.util.io.TarsosDSPAudioFloatConverter;
+import priv.droptea.emotion.util.io.TarsosDSPAudioFormat;
+import priv.droptea.emotion.util.io.TarsosDSPAudioInputStream;
 
 
 

@@ -56,10 +56,24 @@ public class ChartTool {
 	}
 
 	public ChartTool(double[] imp64) {
-		initialize(null,imp64);
+		initialize(null,doubleToFloat(imp64));
 	}
 	
 	public ChartTool(String title,double[] imp64) {
+		
+		
+		initialize(title,doubleToFloat(imp64));
+		
+	}
+	private float[] doubleToFloat(double[] list) {
+		float[] result = new float[list.length];
+		for (int i = 0; i < list.length; i++) {
+			result[i] = (float)list[i];
+		}
+		return result;
+	}
+	
+	public ChartTool(String title,float[] imp64) {
 		initialize(title,imp64);
 		
 	}
@@ -72,7 +86,7 @@ public class ChartTool {
 	/**
 	 * Initialize the contents of the frame.
 	 */
-	private void initialize(String title,double[] array) {
+	private void initialize(String title,float[] array) {
 		frame = new JFrame();
 		frame.setBounds(100, 100, 450, 300);
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);

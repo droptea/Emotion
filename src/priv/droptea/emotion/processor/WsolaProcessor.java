@@ -24,8 +24,8 @@
 
 package priv.droptea.emotion.processor;
 
-import priv.droptea.emotion.AudioDispatcher;
 import priv.droptea.emotion.AudioEvent;
+import priv.droptea.emotion.processor.dispatcher.AudioDispatcher;
 
 /**
  *

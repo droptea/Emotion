@@ -21,7 +21,7 @@
 * 
 */
 
-package priv.droptea.emotion.io;
+package priv.droptea.emotion.util.io;
 
 /*
  * Copyright (c) 1999, 2007, Oracle and/or its affiliates. All rights reserved.

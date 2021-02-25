@@ -26,8 +26,8 @@ package priv.droptea.emotion;
 
 import java.util.Arrays;
 
-import priv.droptea.emotion.io.TarsosDSPAudioFloatConverter;
-import priv.droptea.emotion.io.TarsosDSPAudioFormat;
+import priv.droptea.emotion.util.io.TarsosDSPAudioFloatConverter;
+import priv.droptea.emotion.util.io.TarsosDSPAudioFormat;
 
 
 /**

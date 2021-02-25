@@ -22,7 +22,6 @@ import javax.swing.UIManager;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 
-import priv.droptea.emotion.io.JVMAudioInputStream;
 import priv.droptea.emotion.panel.MicChoosePanel;
 import priv.droptea.emotion.panel.WaveformChartPanel;
 import priv.droptea.emotion.processor.AudioPlayer;
@@ -30,7 +29,9 @@ import priv.droptea.emotion.processor.GainProcessor;
 import priv.droptea.emotion.processor.WaveformChartProcessor;
 import priv.droptea.emotion.processor.WsolaProcessor;
 import priv.droptea.emotion.processor.WsolaProcessor.Parameters;
+import priv.droptea.emotion.processor.dispatcher.AudioDispatcher;
 import priv.droptea.emotion.resample.RateTransposer;
+import priv.droptea.emotion.util.io.JVMAudioInputStream;
 
 
 public class Emotion extends JFrame{

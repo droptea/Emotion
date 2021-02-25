@@ -31,8 +31,8 @@ import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.SourceDataLine;
 
 import priv.droptea.emotion.AudioEvent;
-import priv.droptea.emotion.io.JVMAudioInputStream;
-import priv.droptea.emotion.io.TarsosDSPAudioFormat;
+import priv.droptea.emotion.util.io.JVMAudioInputStream;
+import priv.droptea.emotion.util.io.TarsosDSPAudioFormat;
 
 /**
  * This AudioProcessor can be used to sync events with sound. It uses a pattern

@@ -1,4 +1,4 @@
-package priv.droptea.emotion.ft;
+package priv.droptea.emotion.module.ft;
 
 import priv.droptea.emotion.util.ChartTool;
 
@@ -17,10 +17,13 @@ public class FT {
     	//振幅
     	double amplitude_sin2 = 0.4;
     	Complex[] data = Complex.initArray(N);
+    	double[] data1 = new double[N];
     	for (int i = 0; i < data.length; i++) {
+    		data1[i] = amplitude_sin1*Math.sin(2*Math.PI*i*f_sin1+phase_sin1)+amplitude_sin2*Math.sin(2*Math.PI*i*f_sin2);
     		data[i].re=amplitude_sin1*Math.sin(2*Math.PI*i*f_sin1+phase_sin1)+amplitude_sin2*Math.sin(2*Math.PI*i*f_sin2);//0.8*Math.sin(2*PI*k1*i);
 		}
-    	new ChartTool("原函数",modulus(data));
+    	new ChartTool("原函数",data1);
+    	//if(N>0)return;
     	//dftForward
     	long timeDftForward = System.currentTimeMillis();
     	Complex[] resultDftForward = dftForward(data);
@@ -36,20 +39,23 @@ public class FT {
     	Complex[] resultFftForward = fftForward(data);
     	new ChartTool("fftForward",modulus(resultFftForward));
     	System.out.println("runtime_fftForward:"+(System.currentTimeMillis()-timeFftForward));
+    	for (int i = 0; i < resultFftForward.length; i++) {
+    		resultFftForward[i].re = 1;
+    		resultFftForward[i].im = 0;
+		}
     	//fftForward
     	long timeFftInverse = System.currentTimeMillis();
     	Complex[] resultFftInverse = fftInverse(resultFftForward);
     	new ChartTool("fftInverse",modulus(resultFftInverse));
-    	System.out.println("runtime_fftInverse:"+(System.currentTimeMillis()-timeFftInverse));
-    	
     	double[] data2 = new double[N];
     	double[] data3 = new double[N];
     	for (int i = 0; i < resultFftInverse.length; i++) {
     		data2[i] = resultFftInverse[i].re;
     		data3[i] = resultFftInverse[i].im;
 		}
-    	new ChartTool("时域波形图实数Re",data2);
-    	new ChartTool("时域波形图虚数nnIm",data3);
+    	new ChartTool("nnRe",data2);
+    	new ChartTool("nnIm",data3);
+    	System.out.println("runtime_fftInverse:"+(System.currentTimeMillis()-timeFftInverse));
     	
     	new ChartTool("相位谱",atan(resultFftForward));
 	}

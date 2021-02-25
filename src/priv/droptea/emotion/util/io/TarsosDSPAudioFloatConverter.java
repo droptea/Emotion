@@ -46,14 +46,14 @@
  * CA 95054 USA or visit www.sun.com if you need additional information or
  * have any questions.
  */
-package priv.droptea.emotion.io;
+package priv.droptea.emotion.util.io;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.DoubleBuffer;
 import java.nio.FloatBuffer;
 
-import priv.droptea.emotion.io.TarsosDSPAudioFormat.Encoding;
+import priv.droptea.emotion.util.io.TarsosDSPAudioFormat.Encoding;
 
 
 /**

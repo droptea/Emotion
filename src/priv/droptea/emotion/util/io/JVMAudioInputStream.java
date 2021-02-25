@@ -21,7 +21,7 @@
 * 
 */
 
-package priv.droptea.emotion.io;
+package priv.droptea.emotion.util.io;
 
 import java.io.IOException;
 
